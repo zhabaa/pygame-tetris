@@ -1,9 +1,9 @@
 # config.py
-# import pygame #Раскомментируйте если используете pygame
+import pygame as pg
 
+# Основные параметры
 fps = 25
-
-window_size = window_w, window_h = (600, 500)
+window_w, window_h = 600, 500
 block, cup_h, cup_w = 20, 20, 10
 
 side_freq, down_freq = 0.15, 0.1
@@ -11,31 +11,22 @@ side_freq, down_freq = 0.15, 0.1
 side_margin = int((window_w - cup_w * block) / 2)
 top_margin = window_h - (cup_h * block) - 5
 
-
-# basic_font = pygame.font.SysFont('arial', 20) #Раскомментируйте если используете pygame
-# big_font = pygame.font.SysFont('verdana', 45) #Раскомментируйте если используете pygame
-
 # Цвета
-white = (255, 255, 255)
-gray = (185, 185, 185)
-black = (0, 0, 0)
 colors = ((0, 0, 225), (0, 225, 0), (225, 0, 0), (225, 225, 0))
 lightcolors = ((30, 30, 255), (50, 255, 50), (255, 30, 30), (255, 255, 30))
+white, gray, black = (255, 255, 255), (185, 185, 185), (0, 0, 0)
+brd_color, bg_color, txt_color, title_color, info_color = (
+    white,
+    black,
+    white,
+    colors[3],
+    colors[0],
+)
 
-# Цвета элементов интерфейса
-brd_color = white
-bg_color = black
-txt_color = white
-title_color = colors[3]
-info_color = colors[0]
+# Фигуры
+fig_w, fig_h = 5, 5
+empty = "o"
 
-
-# Размеры фигур
-figure_width, figure_height = 5, 5
-empty = 'o'  # Используем строку 'o' для обозначения пустого места
-
-
-# Формы фигур (Тетрис)
 figures = {
     "S": [
         ["ooooo", "ooooo", "ooxxo", "oxxoo", "ooooo"],

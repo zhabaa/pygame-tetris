@@ -1,285 +1,230 @@
-import pygame
-from pygame.locals import *
-import sys
-
-from config import *
-from functions import createTextObject, calcSpeed, convertCoords
-from field import Field
-from figure import Figure
+# game.py
+import pygame as pg
 import time
+from config import *
+from figure import Figure
+from utils import emptycup, checkPos, addToCup, clearCompleted
+import random
 
-pygame.font.init()
-basic_font = pygame.font.Font("./static/font/GNF.ttf", 20)
-big_font = pygame.font.Font('./static/font/GNF.ttf', 45)
-
-
-class Tetris:
-    def __init__(self):
-        pygame.init()
-        pygame.display.set_caption('Тетрис Lite')
-
-        self.fps_clock = pygame.time.Clock()
-        self.display_surface = pygame.display.set_mode(window_size)
-        self.field = Field()
-        
+class TetrisGame:
+    def __init__(self, display_surf):
+        self.display_surf = display_surf
+        self.cup = emptycup()
+        self.last_move_down = time.time()
+        self.last_side_move = time.time()
         self.last_fall = time.time()
-
+        self.going_down = False
+        self.going_left = False
+        self.going_right = False
         self.points = 0
-        self.level, self.fall_speed = calcSpeed(self.points)
+        self.level, self.fall_speed = self.calcSpeed(self.points)
+        self.fallingFig = self.getNewFig()
+        self.nextFig = self.getNewFig()
+        self.basic_font = pg.font.SysFont('arial', 20)
+        self.big_font = pg.font.SysFont('verdana', 45)
 
-    def dropgame(self):  # Исправлена опечатка
-        pygame.quit()
-        sys.exit()
-
-    def drawInfo(self, points, level):
-        pointsSurf = basic_font.render(f'Баллы: {points}', True, txt_color)
-        pointsRect = pointsSurf.get_rect()
-        pointsRect.topleft = (window_w - 550, 180)
-
-        levelSurf = basic_font.render(f'Уровень: {level}', True, txt_color)
-        levelRect = levelSurf.get_rect()
-        levelRect.topleft = (window_w - 550, 250)
-
-        pausebSurf = basic_font.render('Пауза: пробел', True, info_color)
-        pausebRect = pausebSurf.get_rect()
-        pausebRect.topleft = (window_w - 550, 420)
-
-        escbSurf = basic_font.render('Выход: Esc', True, info_color)
-        escbRect = escbSurf.get_rect()
-        escbRect.topleft = (window_w - 550, 450)
-
-        self.display_surface.blit(pointsSurf, pointsRect)
-        self.display_surface.blit(levelSurf, levelRect)
-        self.display_surface.blit(pausebSurf, pausebRect)
-        self.display_surface.blit(escbSurf, escbRect)
-
-    def pauseScreen(self):
-        pause = pygame.Surface((600, 500), pygame.SRCALPHA)
-        pause.fill((0, 0, 255, 128))
-        self.display_surface.blit(pause, (0, 0))
-
-        self.showTextOnScreen('Пауза')
-
-    def showTextOnScreen(self, text):
-        titleSurf, titleRect = createTextObject(text, big_font, title_color)
-        titleRect.center = (int(window_w / 2) - 3, int(window_h / 2) - 3)
-
-        self.display_surface.blit(titleSurf, titleRect)
-
-        pressKeySurf, pressKeyRect = createTextObject(
-            "Нажмите любую клавишу для продолжения", basic_font, title_color
-        )
-        pressKeyRect.center = (int(window_w / 2), int(window_h / 2) + 100)
-        self.display_surface.blit(pressKeySurf, pressKeyRect)
-
-        while self.checkKeys() is None:
-            pygame.display.update()
-            self.fps_clock.tick()
-
-    def drawTitle(self):
-        titleSurf = big_font.render("Тетрис Lite", True, title_color)
-        titleRect = titleSurf.get_rect()
-        titleRect.topleft = (window_w - 425, 30)
-        self.display_surface.blit(titleSurf, titleRect)
-
-    def quitGame(self):
-        quit_flag = False
-        events = pygame.event.get()
-        for event in events:
-            if event.type == pygame.QUIT:
-                quit_flag = True
-            elif event.type == pygame.KEYUP:
-                if event.key == pygame.K_ESCAPE:
-                    quit_flag = True
-
-        if quit_flag:
-            self.dropgame()
-
-        pygame.event.clear()
-
-    def checkKeys(self):
-        self.quitGame()
-
-        events = pygame.event.get([pygame.KEYDOWN, pygame.KEYUP])
-        for event in events:
-            if event.type in (pygame.KEYDOWN, pygame.KEYUP):  # Обрабатываем оба типа событий
-                return event.key
-
-        return None
-
-    def runTetris(self):
-        activeFigure = Figure()
-        nextFigure = Figure()
-
-        last_move_down = time.time()
-        last_side_move = time.time()
-
+    def run(self):
         while True:
-            if activeFigure is None:
-                activeFigure = nextFigure
-                nextFigure = Figure()
-
+            if self.fallingFig is None:
+                self.fallingFig = self.nextFig
+                self.nextFig = self.getNewFig()
                 self.last_fall = time.time()
 
-                if not self.field.checkPos(activeFigure):
-                    return
+                if not checkPos(self.cup, self.fallingFig):
+                    return  # Game Over
 
-            self.quitGame()
+            self.handle_events()
 
-            events = pygame.event.get()
-            for event in events:
-                if event.type == KEYUP:
-                    if event.key == K_SPACE:
-                        self.pauseScreen()
-                    elif event.key == K_LEFT:
-                        activeFigure.going_left = False
-                    elif event.key == K_RIGHT:
-                        activeFigure.going_right = False
-                    elif event.key == K_DOWN:
-                        activeFigure.going_down = False
+            # Управление падением фигуры при удержании клавиш
+            if (self.going_left or self.going_right) and time.time() - self.last_side_move > side_freq:
+                if self.going_left and checkPos(self.cup, self.fallingFig, adjX=-1):
+                    self.fallingFig.x -= 1
+                elif self.going_right and checkPos(self.cup, self.fallingFig, adjX=1):
+                    self.fallingFig.x += 1
+                self.last_side_move = time.time()
 
-                elif event.type == KEYDOWN:
-                    if event.key == K_LEFT and self.field.checkPos(activeFigure, adjX=-1):
-                        activeFigure.x -= 1
-                        activeFigure.going_left = True
-                        activeFigure.going_right = False
-                        last_side_move = time.time()
+            if self.going_down and time.time() - self.last_move_down > down_freq and checkPos(self.cup, self.fallingFig, adjY=1):
+                self.fallingFig.y += 1
+                self.last_move_down = time.time()
 
-                    elif event.key == K_RIGHT and self.field.checkPos(activeFigure, adjX=1):
-                        activeFigure.x += 1  # Исправлено: activeFigure.x += 1
-                        activeFigure.going_right = True
-                        activeFigure.going_left = False
-                        last_side_move = time.time()
-
-                    elif event.key == K_UP:
-                        new_rotation = (activeFigure.rotation + 1) % len(figures[activeFigure.shape])
-                        activeFigure.rotation = new_rotation
-                        activeFigure.field = figures[activeFigure.shape][activeFigure.rotation]
-                        if not self.field.checkPos(activeFigure):
-                            activeFigure.rotation = (activeFigure.rotation - 1) % len(figures[activeFigure.shape])
-                            activeFigure.field = figures[activeFigure.shape][activeFigure.rotation]
-
-                    elif event.key == K_DOWN:
-                        activeFigure.going_down = True
-                        if self.field.checkPos(activeFigure, adjY=1):
-                            activeFigure.y += 1
-
-                        last_move_down = time.time()
-
-                    elif event.key == K_RETURN:
-                        while self.field.checkPos(activeFigure, adjY=1):
-                            activeFigure.y += 1
-
-            if (activeFigure.going_left or activeFigure.going_right) and time.time() - last_side_move > side_freq:
-                if activeFigure.going_left and self.field.checkPos(activeFigure, adjX=-1):
-                    activeFigure.x -= 1
-
-                elif activeFigure.going_right and self.field.checkPos(activeFigure, adjX=1):
-                    activeFigure.x += 1
-
-                last_side_move = time.time()
-
-            if activeFigure.going_down and time.time() - last_move_down > down_freq and self.field.checkPos(activeFigure, adjY=1):
-                activeFigure.y += 1
-                last_move_down = time.time()
-
-            if time.time() - self.last_fall > self.fall_speed:
-                if not self.field.checkPos(activeFigure, adjY=1):
-                    self.field.addFigure(activeFigure)
-                    removed_lines = self.field.clearCompletedRow()
-                    self.points += removed_lines
-                    self.level, self.fall_speed = calcSpeed(self.points)
-                    activeFigure = None
+            if time.time() - self.last_fall > self.fall_speed:  # Свободное падение фигуры
+                if not checkPos(self.cup, self.fallingFig, adjY=1):
+                    addToCup(self.cup, self.fallingFig)
+                    self.points += clearCompleted(self.cup)
+                    self.level, self.fall_speed = self.calcSpeed(self.points)
+                    self.fallingFig = None
                 else:
-                    activeFigure.y += 1
+                    self.fallingFig.y += 1
                     self.last_fall = time.time()
 
-            # рисуем окно игры со всеми надписями
-            self.display_surface.fill(bg_color)
-            self.drawTitle()
-            self.drawField()
-            self.drawInfo(self.points, self.level)
-            self.drawnextFig(nextFigure)
-            if activeFigure is not None:
-                self.drawFig(activeFigure)
-            pygame.display.update()
-            self.fps_clock.tick(fps)
+            self.draw()
+            pg.display.update()
+            pg.time.Clock().tick(fps)
 
-    def drawField(self):
-        # граница игрового поля
-        pygame.draw.rect(
-            self.display_surface,
-            brd_color,
-            (side_margin - 4, top_margin - 4, (cup_w * block) + 8, (cup_h * block) + 8),
-            5,
-        )
+    def handle_events(self):
+        for event in pg.event.get():
+            if event.type == pg.QUIT:
+                pg.quit()
+                quit()
+
+            if event.type == pg.KEYUP:
+                if event.key == pg.K_SPACE:
+                    self.pauseScreen()
+                    self.showText('Пауза')
+                    self.last_fall = time.time()
+                    self.last_move_down = time.time()
+                    self.last_side_move = time.time()
+                elif event.key == pg.K_LEFT:
+                    self.going_left = False
+                elif event.key == pg.K_RIGHT:
+                    self.going_right = False
+                elif event.key == pg.K_DOWN:
+                    self.going_down = False
+
+            elif event.type == pg.KEYDOWN:
+                if event.key == pg.K_LEFT and checkPos(self.cup, self.fallingFig, adjX=-1):
+                    self.fallingFig.x -= 1
+                    self.going_left = True
+                    self.going_right = False
+                    self.last_side_move = time.time()
+
+                elif event.key == pg.K_RIGHT and checkPos(self.cup, self.fallingFig, adjX=1):
+                    self.fallingFig.x += 1
+                    self.going_right = True
+                    self.going_left = False
+                    self.last_side_move = time.time()
+
+                elif event.key == pg.K_UP:
+                    self.fallingFig.rotation = (self.fallingFig.rotation + 1) % len(figures[self.fallingFig.shape])
+                    if not checkPos(self.cup, self.fallingFig):
+                        self.fallingFig.rotation = (self.fallingFig.rotation - 1) % len(figures[self.fallingFig.shape])
+
+                elif event.key == pg.K_DOWN:
+                    self.going_down = True
+                    if checkPos(self.cup, self.fallingFig, adjY=1):
+                        self.fallingFig.y += 1
+                    self.last_move_down = time.time()
+
+                elif event.key == pg.K_RETURN:
+                    self.going_down = False
+                    self.going_left = False
+                    self.going_right = False
+                    for i in range(1, cup_h):
+                        if not checkPos(self.cup, self.fallingFig, adjY=i):
+                            break
+                    self.fallingFig.y += i - 1
+                elif event.key == pg.K_ESCAPE:
+                    pg.quit()
+                    quit()
+
+    def calcSpeed(self, points):
+        level = int(points / 10) + 1
+        fall_speed = 0.27 - (level * 0.02)
+        return level, fall_speed
+
+    def getNewFig(self):
+        shape = random.choice(list(figures.keys()))
+        return Figure(int(cup_w / 2) - int(fig_w / 2), -2, shape)
+
+    def draw(self):
+        self.display_surf.fill(bg_color)
+        self.drawTitle()
+        self.gamecup()
+        self.drawInfo(self.points, self.level)
+        self.drawnextFig()
+        if self.fallingFig is not None:
+            self.drawFig(self.fallingFig)
+
+    def pauseScreen(self):
+        pause = pg.Surface((600, 500), pg.SRCALPHA)
+        pause.fill((0, 0, 255, 127))
+        self.display_surf.blit(pause, (0, 0))
+
+    def showText(self, text):
+        titleSurf, titleRect = self.txtObjects(text, self.big_font, title_color)
+        titleRect.center = (int(window_w / 2) - 3, int(window_h / 2) - 3)
+        self.display_surf.blit(titleSurf, titleRect)
+
+        pressKeySurf, pressKeyRect = self.txtObjects('Нажмите любую клавишу для продолжения', self.basic_font, title_color)
+        pressKeyRect.center = (int(window_w / 2), int(window_h / 2) + 100)
+        self.display_surf.blit(pressKeySurf, pressKeyRect)
+
+        while True:
+            event = pg.event.wait()
+            if event.type == pg.KEYDOWN:
+                return
+            pg.display.update()
+            pg.time.Clock().tick()
+
+    def txtObjects(self, text, font, color):
+        surf = font.render(text, True, color)
+        return surf, surf.get_rect()
+
+    def gamecup(self):
+        # граница игрового поля-стакана
+        pg.draw.rect(self.display_surf, brd_color, (side_margin - 4, top_margin - 4, (cup_w * block) + 8, (cup_h * block) + 8), 5)
 
         # фон игрового поля
-        pygame.draw.rect(
-            self.display_surface, bg_color, (side_margin, top_margin, block * cup_w, block * cup_h)
-        )
+        pg.draw.rect(self.display_surf, bg_color, (side_margin, top_margin, block * cup_w, block * cup_h))
         for x in range(cup_w):
             for y in range(cup_h):
-                self.drawBlock(x, y, self.field.field[x][y]) # Исправлено: доступ к полю field
+                self.drawBlock(x, y, self.cup[x][y])
 
-    def drawBlock(self, block_x, block_y, color, pixelx=None, pixely=None):
-        # отрисовка квадратных блоков
+    def drawTitle(self):
+        titleSurf = self.big_font.render('Тетрис Lite', True, title_color)
+        titleRect = titleSurf.get_rect()
+        titleRect.topleft = (window_w - 425, 30)
+        self.display_surf.blit(titleSurf, titleRect)
+
+    def drawInfo(self, points, level):
+        pointsSurf = self.basic_font.render(f'Баллы: {points}', True, txt_color)
+        pointsRect = pointsSurf.get_rect()
+        pointsRect.topleft = (window_w - 550, 180)
+        self.display_surf.blit(pointsSurf, pointsRect)
+
+        levelSurf = self.basic_font.render(f'Уровень: {level}', True, txt_color)
+        levelRect = levelSurf.get_rect()
+        levelRect.topleft = (window_w - 550, 250)
+        self.display_surf.blit(levelSurf, levelRect)
+
+        pausebSurf = self.basic_font.render('Пауза: пробел', True, info_color)
+        pausebRect = pausebSurf.get_rect()
+        pausebRect.topleft = (window_w - 550, 420)
+        self.display_surf.blit(pausebSurf, pausebRect)
+
+        escbSurf = self.basic_font.render('Выход: Esc', True, info_color)
+        escbRect = escbSurf.get_rect()
+        escbRect.topleft = (window_w - 550, 450)
+        self.display_surf.blit(escbSurf, escbRect)
+
+    def drawFig(self, fig, pixelx=None, pixely=None):
+        figToDraw = figures[fig.shape][fig.rotation]
+        if pixelx is None and pixely is None:
+            pixelx, pixely = self.convertCoords(fig.x, fig.y)
+
+        #отрисовка элементов фигур
+        for x in range(fig_w):
+            for y in range(fig_h):
+                if figToDraw[y][x] != empty:
+                    self.drawBlock(x=None, y=None, color=fig.color, pixelx=pixelx + (x * block), pixely=pixely + (y * block))
+
+    def drawnextFig(self, pixelx=None, pixely=None):  # превью следующей фигуры
+        nextSurf = self.basic_font.render('Следующая:', True, txt_color)
+        nextRect = nextSurf.get_rect()
+        nextRect.topleft = (window_w - 150, 180)
+        self.display_surf.blit(nextSurf, nextRect)
+        self.drawFig(self.nextFig, pixelx=window_w-150, pixely=230)
+
+    def convertCoords(self, block_x, block_y):
+        return (side_margin + (block_x * block)), (top_margin + (block_y * block))
+
+    def drawBlock(self, x, y, color, pixelx=None, pixely=None):
+        #отрисовка квадратных блоков, из которых состоят фигуры
         if color == empty:
             return
         if pixelx is None and pixely is None:
-            pixelx, pixely = convertCoords(block_x, block_y)
+            pixelx, pixely = self.convertCoords(x, y)
 
-        pygame.draw.rect(
-            self.display_surface,
-            colors[color],
-            (pixelx + 1, pixely + 1, block - 1, block - 1),
-            0,
-            3,
-        )
-        pygame.draw.rect(
-            self.display_surface,
-            lightcolors[color],
-            (pixelx + 1, pixely + 1, block - 4, block - 4),
-            0,
-            3,
-        )
-        pygame.draw.circle(
-            self.display_surface, colors[color], (pixelx + block / 2, pixely + block / 2), 5
-        )
-
-    def drawFig(self, figure, pixelx=None, pixely=None):
-        figToDraw = figure.field # Исправлено: figure.field
-        if pixelx is None and pixely is None:
-            pixelx, pixely = convertCoords(figure.x, figure.y)
-
-        for x in range(figure_width):
-            for y in range(figure_height):
-                if figToDraw[y][x] != empty:
-                    # Нам не нужно преобразовывать None в координаты, потому что они уже заданы явно
-                    self.drawBlock(
-                        None,
-                        None,
-                        figure.color,
-                        pixelx + (x * block),
-                        pixely + (y * block),
-                    )
-
-    def drawnextFig(self, figure):  # превью следующей фигуры
-        nextSurf = basic_font.render("Следующая:", True, txt_color)
-        nextRect = nextSurf.get_rect()
-        nextRect.topleft = (window_w - 150, 180)
-        self.display_surface.blit(nextSurf, nextRect)
-        self.drawFig(figure, pixelx=window_w - 150, pixely=230)
-
-    def start(self):
-        self.showTextOnScreen('Тетрис Lite')
-
-        while True:
-            self.runTetris()
-            self.pauseScreen()
-            self.showTextOnScreen('Игра закончена')
-
-
-if __name__ == "__main__":
-    game = Tetris()
-    game.start()
+        pg.draw.rect(self.display_surf, colors[color], (pixelx + 1, pixely + 1, block - 1, block - 1), 0, 3)
+        pg.draw.rect(self.display_surf, lightcolors[color], (pixelx + 1, pixely + 1, block - 4, block - 4), 0, 3)
+        pg.draw.circle(self.display_surf, colors[color], (pixelx + block / 2, pixely + block / 2), 5)
