@@ -1,19 +1,15 @@
-# main.py
 import pygame as pg
+
 from game import TetrisGame
-from config import window_w, window_h
+from config import WINDOW_SIZE
 
 def main():
     pg.init()
-    display_surf = pg.display.set_mode((window_w, window_h))
-    pg.display.set_caption('Тетрис Lite')
+    screen = pg.display.set_mode(WINDOW_SIZE)
+    pg.display.set_caption("Tetris")
+    
+    game = TetrisGame(screen)
+    game.run()
 
-    game = TetrisGame(display_surf)
-    game.showText('Тетрис Lite')
-    while True:
-        game.run()
-        game.pauseScreen()
-        game.showText('Игра закончена')
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

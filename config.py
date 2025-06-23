@@ -1,62 +1,38 @@
-# config.py
-import pygame as pg
+FPS = 20
+SIDE_FREQ, DOWN_FREQ = 0.15, 0.1
 
-# Основные параметры
-fps = 25
-window_w, window_h = 600, 500
-block, cup_h, cup_w = 20, 20, 10
+BASE_FALL_SPEED = 0.1
 
-side_freq, down_freq = 0.15, 0.1
+WINDOW_SIZE = WINDOW_WIDTH, WINDOW_HEIGHT = 800, 600
 
-side_margin = int((window_w - cup_w * block) / 2)
-top_margin = window_h - (cup_h * block) - 5
+BLOCK = BLOCK_SIZE = 20
+BLOCK_WIDTH, BLOCK_HEIGHT = 5, 5
 
-# Цвета
-colors = ((0, 0, 225), (0, 225, 0), (225, 0, 0), (225, 225, 0))
-lightcolors = ((30, 30, 255), (50, 255, 50), (255, 30, 30), (255, 255, 30))
-white, gray, black = (255, 255, 255), (185, 185, 185), (0, 0, 0)
-brd_color, bg_color, txt_color, title_color, info_color = (
-    white,
-    black,
-    white,
-    colors[3],
-    colors[0],
-)
+FIELD_HEIGHT, FIELD_WIDTH = 20, 10
 
-# Фигуры
-fig_w, fig_h = 5, 5
-empty = "o"
+SIDE_MARGIN = int((WINDOW_WIDTH - FIELD_WIDTH * BLOCK) / 2)
+TOP_MARGIN = WINDOW_HEIGHT - (FIELD_HEIGHT * BLOCK) - 5
 
-figures = {
-    "S": [
-        ["ooooo", "ooooo", "ooxxo", "oxxoo", "ooooo"],
-        ["ooooo", "ooxoo", "ooxxo", "oooxo", "ooooo"],
-    ],
-    "Z": [
-        ["ooooo", "ooooo", "oxxoo", "ooxxo", "ooooo"],
-        ["ooooo", "ooxoo", "oxxoo", "oxooo", "ooooo"],
-    ],
-    "J": [
-        ["ooooo", "oxooo", "oxxxo", "ooooo", "ooooo"],
-        ["ooooo", "ooxxo", "ooxoo", "ooxoo", "ooooo"],
-        ["ooooo", "ooooo", "oxxxo", "oooxo", "ooooo"],
-        ["ooooo", "ooxoo", "ooxoo", "oxxoo", "ooooo"],
-    ],
-    "L": [
-        ["ooooo", "oooxo", "oxxxo", "ooooo", "ooooo"],
-        ["ooooo", "ooxoo", "ooxoo", "ooxxo", "ooooo"],
-        ["ooooo", "ooooo", "oxxxo", "oxooo", "ooooo"],
-        ["ooooo", "oxxoo", "ooxoo", "ooxoo", "ooooo"],
-    ],
-    "I": [
-        ["ooxoo", "ooxoo", "ooxoo", "ooxoo", "ooooo"],
-        ["ooooo", "ooooo", "xxxxo", "ooooo", "ooooo"],
-    ],
-    "O": [["ooooo", "ooooo", "oxxoo", "oxxoo", "ooooo"]],
-    "T": [
-        ["ooooo", "ooxoo", "oxxxo", "ooooo", "ooooo"],
-        ["ooooo", "ooxoo", "ooxxo", "ooxoo", "ooooo"],
-        ["ooooo", "ooooo", "oxxxo", "ooxoo", "ooooo"],
-        ["ooooo", "ooxoo", "oxxoo", "ooxoo", "ooooo"],
-    ],
+EMPTY = "."
+
+COLORS = {
+    'white': (255, 255, 255),
+    'black': (0, 0, 0),
 }
+
+BLOCK_COLORS = {
+    "Pink": (240, 192, 203),
+    "Lavender": (224, 208, 244),
+    "Mint": (204, 255, 204),
+    "Blue": (190, 218, 255),
+    "Peach": (255, 218, 185),
+    "Lemon": (255, 255, 224),
+    "Seafoam": (178, 255, 204)
+}
+
+BORDER_COLOR = COLORS['white']
+FIELD_BACKGROUND = COLORS['black']
+BACKGROUND_COLOR = COLORS['black']
+
+TITLE_COLOR = COLORS['white']
+TEXT_COLOR = COLORS['white']
